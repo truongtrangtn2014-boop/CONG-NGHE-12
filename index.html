@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<!--
+  AI Nhận Dạng Linh Kiện - Phiên bản hoàn chỉnh cho điện thoại
+  ----------------------------------------------
+  Hướng dẫn:
+  1️⃣ Đặt thư mục model chứa model.json, metadata.json, weights.bin cạnh file này.
+  2️⃣ Mở file index.html bằng HTTPS (GitHub Pages khuyến khích).
+  3️⃣ Sửa SHEETS_WEBHOOK_URL trong CONFIG nếu muốn ghi kết quả lên Google Sheets.
+-->
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>ỨNG DỤNG AI NHẬN DIỆN LINH KIỆN ĐIỆN TỬ - CÔNG NGHỆ 12</title>
+
+  <!-- TensorFlow.js & Teachable Machine -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8.4/dist/teachablemachine-image.min.js"></script>
+
+  <style>
+    :root{--accent:#0ea5a6;--soft:#f7fafc}
+    *{box-sizing:border-box}
+    body{
+      font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      margin:0;
+      color:#0f172a;
+      background:url('https://cdn.openai.com/chatgpt/teacher_ai/machdientu.png') no-repeat center center fixed;
+      background-size:cover;
+    }
+    /* Lớp phủ làm mờ nền */
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      background:rgba(255,255,255,0.75);
+      backdrop-filter:blur(2px);
+      z-index:-1;
+    }
+
+    header{padding:12px 16px;display:flex;align-items:center;gap:12px}
+    header h1{font-size:18px;margin:0}
+    .wrap{padding:10px}
+    .cam-card{background:white;border-radius:14px;padding:10px;box-shadow:0 6px 18px rgba(8,15,24,0.06);}
+    video{width:100%;border-radius:10px;background:#000}
+    .controls{display:flex;gap:8px;margin-top:8px}
+    .btn{flex:1;padding:10px;border-radius:10px;border:none;font-weight:600}
+    .btn-primary{background:var(--accent);color:white}
+    .btn-ghost{background:transparent;border:1px solid #e6eef0}
+    #resultCard{margin-top:12px;background:white;border-radius:12px;padding:12px}
+    .label{font-size:16px;font-weight:700}
+    .prob{font-size:13px;color:#475569}
+    .desc{margin-top:8px;color:#0f172a}
+    .quiz{margin-top:10px;padding-top:10px;border-top:1px dashed #e6eef0}
+    .quiz button{display:block;width:100%;margin-top:8px;padding:8px;border-radius:8px;border:1px solid #e6eef0;background:white}
+    .row{display:flex;gap:8px}
+    input[type="text"]{padding:8px;border-radius:8px;border:1px solid #e6eef0;flex:1}
+    footer{padding:12px;text-align:center;color:#64748b;font-size:13px}
+    @media(min-width:720px){body{padding:20px}.wrap{max-width:720px;margin:auto}}
+  </style>
+</head>
+<body>
+  <header>
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="24" height="24" rx="6" fill="#0ea5a6"/><path d="M7.5 15.5L11 11L16.5 16" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h1>ỨNG DỤNG AI NHẬN DIỆN LINH KIỆN ĐIỆN TỬ - CÔNG NGHỆ 12</h1>
+  </header>
+
+  <div class="wrap">
+    <div class="cam-card">
+      <video id="webcam" playsinline autoplay muted></video>
+      <div class="controls">
+        <button id="btnStart" class="btn btn-primary">Bật camera</button>
+        <button id="btnStop" class="btn btn-ghost">Tắt</button>
+      </div>
+
+      <div id="resultCard" hidden>
+        <div class="label" id="labelText">--</div>
+        <div class="prob" id="probText">--</div>
+        <div class="desc" id="descText">--</div>
+        <div class="quiz" id="quizArea"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;background:white;padding:10px;border-radius:12px;box-shadow:0 6px 18px rgba(8,15,24,0.04)">
+      <div style="font-weight:700;margin-bottom:6px">Thông tin học sinh (để lưu kết quả)</div>
+      <div class="row">
+        <input id="studentName" type="text" placeholder="Tên học sinh" />
+        <input id="studentClass" type="text" placeholder="Lớp" style="width:110px" />
+      </div>
+      <div style="margin-top:8px;font-size:13px;color:#475569">Lưu ý: thêm URL Google Apps Script Web App vào <code>SHEETS_WEBHOOK_URL</code> trong phần CONFIG để lưu kết quả.</div>
+    </div>
+  </div>
+
+  <footer>Phiên bản mẫu • Tải model vào thư mục <code>model/</code> và upload lên GitHub Pages</footer>
+
+  <script>
+    /*************************** CONFIG ***************************/
+    const CONFIG = {
+      MODEL_BASE_URL: './model/', // Thư mục chứa model.json
+      SHEETS_WEBHOOK_URL: '',     // Dán URL Google Apps Script tại đây
+      COMPONENT_INFO: {
+        "Điện trở": {
+          short: "Điện trở",
+          desc: "Giảm dòng điện, chia điện áp. Cấu tạo: vật liệu điện trở. Nguyên lý: định luật Ohm.",
+          quiz: [{q:"Điện trở có chức năng nào sau đây?",a:["Tích điện","Giảm dòng điện","Tăng điện áp"],correct:1}]
+        },
+        "Tụ điện": {
+          short: "Tụ điện",
+          desc: "Tích trữ năng lượng điện dưới dạng điện trường giữa hai bản cực. Dùng lọc, ghép tín hiệu.",
+          quiz: [{q:"Tụ điện dùng để?",a:["Lưu trữ điện tích","Khuếch đại tín hiệu","Chuyển đổi AC→DC"],correct:0}]
+        },
+        "Diode": {
+          short: "Diode",
+          desc: "Cho dòng điện đi một chiều, dùng chỉnh lưu, bảo vệ ngược, LED là diode phát sáng.",
+          quiz: [{q:"Diode cho dòng điện đi theo?",a:["Hai chiều","Một chiều","Không cho dòng"],correct:1}]
+        },
+        "Transistor": {
+          short: "Transistor",
+          desc: "Dùng khuếch đại và đóng/cắt tín hiệu. Có loại NPN và PNP.",
+          quiz: [{q:"Transistor có thể dùng để?",a:["Lưu trữ dữ liệu lâu dài","Khuếch đại tín hiệu","Tạo điện áp cố định"],correct:1}]
+        },
+        "IC": {
+          short: "IC (Mạch tích hợp)",
+          desc: "Mạch tích hợp nhiều linh kiện nhỏ trên chip, dùng cho xử lý và điều khiển.",
+          quiz: [{q:"IC là gì?",a:["Điện trở lớn","Mạch tích hợp","Một loại tụ"],correct:1}]
+        }
+      }
+    };
+    /**************************************************************/
+
+    let model, webcam, running=false, maxPredictions;
+    const videoEl=document.getElementById('webcam');
+    const btnStart=document.getElementById('btnStart');
+    const btnStop=document.getElementById('btnStop');
+    const labelText=document.getElementById('labelText');
+    const probText=document.getElementById('probText');
+    const descText=document.getElementById('descText');
+    const resultCard=document.getElementById('resultCard');
+    const quizArea=document.getElementById('quizArea');
+
+    btnStart.addEventListener('click',start);
+    btnStop.addEventListener('click',stop);
+
+    async function initModel(){
+      try{
+        model=await tmImage.load(CONFIG.MODEL_BASE_URL+'model.json',CONFIG.MODEL_BASE_URL+'metadata.json');
+        maxPredictions=model.getTotalClasses();
+        console.log('Model loaded.');
+      }catch(e){alert('Không tải được model: '+e);}
+    }
+
+    async function start(){
+      if(!model) await initModel();
+      if(running) return;
+      try{webcam=await tmImage.Webcam.getUserMedia({facingMode:'environment'});}
+      catch(e){webcam=new tmImage.Webcam(320,240,true);await webcam.setup();await webcam.play();}
+      videoEl.srcObject=webcam.webcam?webcam.webcam.stream:null;
+      resultCard.hidden=false;running=true;predictLoop();
+    }
+
+    function stop(){
+      running=false;resultCard.hidden=true;quizArea.innerHTML='';
+      labelText.innerText='--';probText.innerText='--';descText.innerText='--';
+      if(webcam?.webcam?.stream){webcam.webcam.stream.getTracks().forEach(t=>t.stop());}
+    }
+
+    async function predictLoop(){
+      if(!running) return;
+      try{
+        const prediction=await model.predict(videoEl);
+        prediction.sort((a,b)=>b.probability-a.probability);
+        const best=prediction[0];
+        const name=best.className;
+        const prob=Math.round(best.probability*100);
+        labelText.innerText=CONFIG.COMPONENT_INFO[name]?.short||name;
+        probText.innerText=`Độ tin cậy: ${prob}%`;
+        descText.innerText=CONFIG.COMPONENT_INFO[name]?.desc||'Chưa có mô tả.';
+        if(prob>=60) showQuizFor(name);
+      }catch(e){console.error(e);}
+      requestAnimationFrame(predictLoop);
+    }
+
+    let lastQuizFor=null;
+    function showQuizFor(name){
+      if(lastQuizFor===name) return;
+      lastQuizFor=name;
+      const info=CONFIG.COMPONENT_INFO[name];
+      if(!info?.quiz){quizArea.innerHTML='<div style="color:#64748b">Không có câu hỏi.</div>';return;}
+      const q=info.quiz[Math.floor(Math.random()*info.quiz.length)];
+      let html=`<div style="font-weight:700">Câu hỏi kiểm tra</div><div style="margin-top:6px">${q.q}</div>`;
+      q.a.forEach((ans,i)=>html+=`<button onclick="handleAnswer('${name}',${i},${q.correct})">${ans}</button>`);
+      quizArea.innerHTML=html;
+    }
+
+    window.handleAnswer=function(name,chosen,correct){
+      const ok=chosen===correct;
+      const sName=document.getElementById('studentName').value||'Khách';
+      const sClass=document.getElementById('studentClass').value||'';
+      alert(ok?'Đúng rồi! 🎉':'Sai rồi 😅. Đáp án đúng là '+(correct+1));
+      if(CONFIG.SHEETS_WEBHOOK_URL){
+        const data={student:sName,class:sClass,component:name,correct:ok,timestamp:new Date().toISOString()};
+        fetch(CONFIG.SHEETS_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      }
+      setTimeout(()=>{lastQuizFor=null;quizArea.innerHTML='';},1200);
+    }
+
+    (async()=>{try{await initModel();console.log('Model preload ok');}catch(e){}})();
+  </script>
+</body>
+</html>
