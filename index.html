@@ -1,179 +1,202 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>ỨNG DỤNG AI NHẬN DIỆN LINH KIỆN ĐIỆN TỬ</title>
+
   <style>
     :root{
-      --accent: #0b63ff;
-      --card-bg: rgba(255,255,255,0.92);
-      --glass: rgba(255,255,255,0.08);
+      --accent:#0b6cf0;
+      --muted:#6b7280;
+      --card:#fff;
+      --radius:12px;
     }
-    html,body{height:100%;margin:0;font-family:Inter, system-ui, Arial, sans-serif;color:#0a0a0a}
-
-    /* Background image (replace chip-bg.jpg with your image) */
-    body::before{
-      content:"";
-      position:fixed;inset:0;background-image:url('chip-bg.jpg');
-      background-size:cover;background-position:center;filter:blur(6px) brightness(0.6) contrast(1.05);
-      opacity:0.65;z-index:-2;
-    }
-
-    /* soft gradient overlay to ensure contrast */
-    body::after{
-      content:"";position:fixed;inset:0;background:linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.12));z-index:-1;
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg,#f3f8ff,#ffffff);
+      color:#111827;
+      -webkit-font-smoothing:antialiased;
     }
 
-    .app{
-      min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;
+    .wrap{
+      max-width:900px;
+      margin:12px auto;
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
     }
 
-    /* Portrait phone frame */
-    .phone {
-      width:360px;max-width:92vw;height:780px;max-height:92vh;border-radius:28px;box-shadow:0 20px 40px rgba(0,0,0,0.35);overflow:hidden;background:linear-gradient(180deg,#fafafa,#f3f7ff);
-      display:flex;flex-direction:column;position:relative;
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      padding:8px 12px;
+      background:var(--card);
+      border-radius:10px;
+      box-shadow:0 6px 18px rgba(11,19,40,0.06);
+    }
+    .title{ font-weight:800; color:var(--accent); font-size:18px; }
+    .sub{ font-size:12px; color:var(--muted); }
+
+    .card{
+      background:var(--card);
+      padding:12px;
+      border-radius:12px;
+      box-shadow:0 8px 30px rgba(12,40,80,0.05);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
     }
 
-    header{padding:14px 18px;border-bottom:1px solid rgba(10,10,10,0.04);display:flex;align-items:center;gap:10px}
-    header h1{font-size:16px;margin:0;line-height:1.05}
-    header p{margin:0;font-size:12px;color:#444}
+    /* Khung camera nhỏ gọn - chiều cao ~180px (nhỏ bằng ~1/3 so với ban đầu) */
+    #video-wrap{
+      width:100%;
+      max-width:540px;
+      height:180px;
+      margin:0 auto;
+      border-radius:10px;
+      overflow:hidden;
+      background:#000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+      border:2px solid rgba(11,108,240,0.08);
+    }
 
-    .viewer{flex:1;display:flex;align-items:center;justify-content:center;padding:12px}
+    /* Hướng dẫn mảnh */
+    .overlay-hint{
+      position:absolute;
+      top:6px;
+      left:8px;
+      background:rgba(255,255,255,0.85);
+      padding:6px 8px;
+      font-size:13px;
+      border-radius:8px;
+      color:#0b6cf0;
+      font-weight:700;
+      box-shadow:0 2px 6px rgba(0,0,0,0.08);
+    }
 
-    /* Video area that keeps portrait orientation */
-    .camera-wrap{width:100%;height:100%;max-height:520px;display:flex;align-items:center;justify-content:center;position:relative}
-    video{width:100%;height:100%;object-fit:cover;border-radius:12px;background:#000}
-    canvas{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+    /* Kết quả */
+    .result{
+      display:flex;
+      gap:12px;
+      flex-direction:column;
+      align-items:stretch;
+    }
+    .label{
+      font-weight:800;
+      color:#0b6cf0;
+      font-size:16px;
+    }
+    .score{ font-size:13px; color:var(--muted); }
 
-    .controls{padding:12px 16px;border-top:1px solid rgba(10,10,10,0.04);display:flex;gap:8px;align-items:center}
-    button{flex:1;padding:10px;border-radius:8px;border:0;background:var(--accent);color:#fff;font-weight:600}
-    button.stop{background:#d64545}
+    .info-row{
+      background:#fbfdff;
+      border-radius:8px;
+      padding:8px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+    }
+    .info-title{ font-weight:700; margin-bottom:6px; color:#0f172a; }
+    .info-text{ color:#111827; font-size:14px; line-height:1.45; }
 
-    .info{padding:12px 16px;font-size:14px}
-    .card{background:var(--card-bg);border-radius:12px;padding:10px;box-shadow:0 6px 18px rgba(10,10,10,0.06)}
+    .controls{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    button{
+      background:var(--accent);
+      color:white;
+      border:0;
+      padding:8px 12px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:700;
+    }
+    button.secondary{
+      background:#eef6ff;
+      color:var(--accent);
+      font-weight:700;
+    }
 
-    .label{font-weight:700;font-size:18px;margin:6px 0}
-    .desc{font-size:13px;color:#333;margin:6px 0}
+    footer{
+      margin-top:12px;
+      text-align:right;
+      font-size:13px;
+      color:var(--muted);
+    }
 
-    footer{position:absolute;left:12px;right:12px;bottom:10px;text-align:center;font-size:13px;color:#222}
-    footer em{font-style:italic;display:inline-block}
-
-    /* Make layout responsive for smaller phones */
-    @media(max-height:700px){.phone{height:92vh}}
-    @media(min-width:900px){.phone{width:420px;height:820px}}
+    @media (max-width:520px){
+      #video-wrap{ height:140px; }
+    }
   </style>
 </head>
 <body>
-  <div class="app">
-    <div class="phone" role="application" aria-label="Ứng dụng AI nhận diện linh kiện">
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="title">ỨNG DỤNG AI NHẬN DIỆN LINH KIỆN ĐIỆN TỬ</div>
+        <div class="sub">Dự án: Ứng dụng AI trong dạy học CNCN 12</div>
+      </div>
+      <div style="text-align:right;font-size:13px;color:var(--muted);font-weight:600">
+        Trường THPT Trần Quốc Tuấn
+      </div>
+    </header>
 
-      <header>
-        <div style="flex:1">
-          <h1>ỨNG DỤNG AI NHẬN DIỆN LINH KIỆN ĐIỆN TỬ</h1>
-          <p>Nhận diện qua camera — mô tả + câu hỏi trắc nghiệm</p>
-        </div>
-      </header>
-
-      <div class="viewer">
-        <div style="width:100%;max-width:420px">
-          <div class="camera-wrap card" id="cameraWrap">
-            <video id="video" playsinline autoplay muted></video>
-            <canvas id="overlay"></canvas>
-          </div>
-
-          <div class="info">
-            <div class="card">
-              <div class="label" id="detectedLabel">Chưa kết nối camera</div>
-              <div class="desc" id="detectedDesc">Nhấn "Bật camera" và đưa linh kiện trước camera. Ứng dụng ưu tiên sử dụng camera sau (rear camera).
-              </div>
-            </div>
-          </div>
-
-          <div class="controls">
-            <button id="startBtn">Bật camera</button>
-            <button id="stopBtn" class="stop">Tắt</button>
-          </div>
-
-        </div>
+    <div class="card">
+      <div id="video-wrap">
+        <div class="overlay-hint">Giữ điện thoại dọc — đặt linh kiện vào khung</div>
+        <!-- canvas/video sẽ được chèn vào đây -->
+        <div id="video-target"></div>
       </div>
 
-      <footer>
-        <em>Trường THPT Trần Quốc Tuấn</em>
-      </footer>
+      <div class="controls">
+        <button id="startBtn">Bắt đầu</button>
+        <button id="stopBtn" class="secondary">Dừng</button>
+        <button id="flipBtn" class="secondary">Chuyển camera</button>
+        <div id="status" style="margin-left:auto;color:var(--muted);font-weight:700">Trạng thái: Chưa sẵn sàng</div>
+      </div>
 
+      <div class="result">
+        <div>
+          <div class="label" id="detectedName">—</div>
+          <div class="score" id="detectedScore">—</div>
+        </div>
+
+        <div class="info-row">
+          <div class="info-title">Công dụng</div>
+          <div class="info-text" id="func">—</div>
+        </div>
+
+        <div class="info-row">
+          <div class="info-title">Cấu tạo</div>
+          <div class="info-text" id="structure">—</div>
+        </div>
+
+        <div class="info-row">
+          <div class="info-title">Nguyên lý hoạt động</div>
+          <div class="info-text" id="principle">—</div>
+        </div>
+      </div>
     </div>
+
+    <footer>Ứng dụng AI trong dạy học Công nghệ 12</footer>
   </div>
 
+  <!-- Thư viện TensorFlow + Teachable Machine (image) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest"></script>
+
   <script>
-    const video = document.getElementById('video');
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const detectedLabel = document.getElementById('detectedLabel');
-    const detectedDesc = document.getElementById('detectedDesc');
-    let stream = null;
-
-    // Try to get the rear camera when possible. Use ideal first, fallback to default.
-    async function startCamera(){
-      detectedLabel.textContent = 'Đang khởi động camera...';
-      const constraints = {
-        audio:false,
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1080 },
-          height: { ideal: 1920 }
-        }
-      };
-
-      try{
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = stream;
-        await video.play();
-        detectedLabel.textContent = 'Camera đã bật — sẵn sàng nhận diện';
-        detectedDesc.textContent = 'Đưa linh kiện trước camera sau để nhận diện. (Nếu trình duyệt không hỗ trợ camera sau, sẽ dùng camera mặc định)';
-        // Resize canvas to video size
-        const canvas = document.getElementById('overlay');
-        canvas.width = video.videoWidth || 720;
-        canvas.height = video.videoHeight || 1280;
-
-        // Placeholder: here you can call your Teachable Machine predict loop
-        // runPredictionLoop();
-      }catch(err){
-        console.error(err);
-        detectedLabel.textContent = 'Không thể mở camera';
-        detectedDesc.textContent = 'Hãy kiểm tra quyền truy cập camera và thử lại.';
-        alert('Lỗi khi mở camera: ' + (err.message || err));
-      }
-    }
-
-    function stopCamera(){
-      if(stream){
-        stream.getTracks().forEach(t => t.stop());
-        stream = null;
-      }
-      video.pause();
-      video.srcObject = null;
-      detectedLabel.textContent = 'Camera đã tắt';
-      detectedDesc.textContent = 'Nhấn "Bật camera" để sử dụng.';
-    }
-
-    startBtn.addEventListener('click', ()=> startCamera());
-    stopBtn.addEventListener('click', ()=> stopCamera());
-
-    // Optional: keyboard shortcuts for desktop testing
-    window.addEventListener('keydown', (e)=>{
-      if(e.key === 's') startCamera();
-      if(e.key === 'x') stopCamera();
-    });
-
-    /*
-      HƯỚNG DẪN TÍCH HỢP MÔ HÌNH TEACHABLE MACHINE (tóm tắt):
-      - Sau khi export model (TensorFlow.js), chèn script theo hướng dẫn của Teachable Machine
-      - Tải model bằng tf.loadGraphModel(modelURL) hoặc tmImage.load(modelURL, metadata)
-      - Trong vòng lặp (requestAnimationFrame) lấy frame từ video và dự đoán -> hiển thị kết quả
-      - Gợi ý: đặt vùng nhận diện chính giữa video (phù hợp điện thoại dọc)
-    */
-
-  </script>
-</body>
-</html>
+    /**************************************************************************
+     * Cấu hình: mô hình nằm trong thư mục `model/` trên GitHub Pages
+     * index.html và thư mục model/ phải nằm cùng cấp trên repo gh-pages.
+     **************************************************************************/
+    const
