@@ -14,47 +14,49 @@
       margin: 0;
       padding: 20px;
     }
-    h2 { color: #007bff; }
+    h2 {
+      color: #007bff;
+      margin-bottom: 15px;
+    }
     #camera-container {
-      margin: 15px auto;
+      margin: 20px auto;
       border: 2px solid #007bff;
-      border-radius: 10px;
-      width: 320px; height: 240px;
+      border-radius: 12px;
+      width: 340px;
+      height: 260px;
       overflow: hidden;
       background: #000;
+      box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
     }
     video {
-      width: 320px; height: 240px;
+      width: 340px;
+      height: 260px;
       object-fit: cover;
       transform: scaleX(-1);
     }
-    input, button {
-      margin: 6px;
-      padding: 8px;
-      border-radius: 6px;
-      border: 1px solid #007bff;
-    }
-    input:focus {
-      outline: none;
-      box-shadow: 0 0 6px #007bff;
-    }
     button {
+      margin-top: 10px;
       background: #007bff;
       color: white;
       border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
       cursor: pointer;
       transition: 0.3s;
+      font-size: 16px;
     }
-    button:hover { background: #0056b3; }
+    button:hover {
+      background: #0056b3;
+    }
     #result {
-      margin-top: 15px;
+      margin-top: 20px;
       font-size: 18px;
       background: #e3f2fd;
-      border-radius: 10px;
-      padding: 10px;
+      border-radius: 12px;
+      padding: 15px;
       display: inline-block;
       border: 1px solid #007bff;
-      max-width: 400px;
+      max-width: 450px;
     }
     #desc {
       text-align: left;
@@ -78,17 +80,16 @@
     #quizBtn:hover {
       background: #0056b3;
     }
+    #footer {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #555;
+    }
   </style>
 </head>
 
 <body>
   <h2>🔹 ỨNG DỤNG NHẬN DIỆN LINH KIỆN ĐIỆN TỬ BẰNG AI 🔹</h2>
-
-  <label for="studentName">Họ và tên:</label>
-  <input type="text" id="studentName" placeholder="Nhập họ và tên học sinh" /><br>
-
-  <label for="classCode">Mã lớp:</label>
-  <input type="text" id="classCode" placeholder="VD: 10A1" />
 
   <div id="camera-container">
     <video id="webcam" autoplay playsinline muted></video>
@@ -114,22 +115,23 @@
     const URL = "model/";
     let model;
 
-    // Bảng mô tả linh kiện
+    // 🔹 Bảng mô tả linh kiện & link Google Form
     const linhKienData = {
       "Điện trở": {
-        desc: "✅ Điện trở là linh kiện cản trở dòng điện trong mạch. Dùng để điều chỉnh dòng điện, chia điện áp và bảo vệ linh kiện khác.",
-        quiz: "https://forms.gle/abc123dien_tro" // 🔗 link Google Form riêng
+        desc: "✅ Điện trở là linh kiện cản trở dòng điện trong mạch. Dùng để điều chỉnh dòng điện, chia điện áp và bảo vệ linh kiện khác. Đơn vị: Ôm (Ω).",
+        quiz: "https://forms.gle/cDEBsXXoab5saytk9"
       },
       "Tụ điện": {
-        desc: "✅ Tụ điện là linh kiện có khả năng tích trữ điện tích. Dùng để lọc nhiễu, khởi động động cơ, và ổn định nguồn điện.",
-        quiz: "https://forms.gle/abc123tu_dien"
+        desc: "✅ Tụ điện dùng để ngăn cản dòng điện một chiều, cho dòng xoay chiều đi qua, tạo mạch cộng hưởng khi mắc với cuộn cảm, dùng trong mạch lọc... Đơn vị: Fara (F).",
+        quiz: "https://forms.gle/qoZgfJ6WdSuYDsiw8"
       },
       "Cuộn cảm": {
-        desc: "✅ Cuộn cảm (inductor) là linh kiện tích trữ năng lượng dưới dạng từ trường. Dùng trong các mạch lọc, nguồn xung và radio.",
-        quiz: "https://forms.gle/abc123cuon_cam"
+        desc: "✅ Cuộn cảm dẫn dòng điện một chiều, ngăn cản dòng cao tần và tạo mạch cộng hưởng khi lắp với tụ điện; tích trữ năng lượng dưới dạng từ trường. Dùng trong mạch lọc, nguồn xung và radio. Đơn vị: Henry (H).",
+        quiz: "https://forms.gle/wkDiAfmQgmdq56Ah7"
       }
     };
 
+    // 🔹 Khởi tạo camera & model
     async function init() {
       const modelURL = URL + "model.json";
       const metadataURL = URL + "metadata.json";
@@ -149,11 +151,13 @@
       }
     }
 
+    // 🔹 Vòng lặp dự đoán liên tục
     async function loop() {
       await predict();
       requestAnimationFrame(loop);
     }
 
+    // 🔹 Hàm nhận diện linh kiện
     async function predict() {
       const video = document.getElementById("webcam");
       if (!model) return;
@@ -168,7 +172,6 @@
       document.getElementById("label").innerText = name;
       document.getElementById("confidence").innerText = (best.probability * 100).toFixed(2) + "%";
 
-      // Hiển thị mô tả nếu trùng tên linh kiện
       const descDiv = document.getElementById("desc");
       const quizBtn = document.getElementById("quizBtn");
 
