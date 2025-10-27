@@ -14,10 +14,10 @@
       margin: 0;
       padding: 20px;
     }
-    h2 { color: #2e7d32; }
+    h2 { color: #007bff; }
     #camera-container {
       margin: 15px auto;
-      border: 2px solid #4caf50;
+      border: 2px solid #007bff;
       border-radius: 10px;
       width: 320px; height: 240px;
       overflow: hidden;
@@ -26,49 +26,85 @@
     video {
       width: 320px; height: 240px;
       object-fit: cover;
-      transform: scaleX(-1); /* lật gương cho dễ nhìn */
+      transform: scaleX(-1);
     }
     input, button {
       margin: 6px;
       padding: 8px;
       border-radius: 6px;
-      border: 1px solid #ccc;
+      border: 1px solid #007bff;
+    }
+    input:focus {
+      outline: none;
+      box-shadow: 0 0 6px #007bff;
     }
     button {
-      background: #4caf50;
+      background: #007bff;
       color: white;
       border: none;
       cursor: pointer;
+      transition: 0.3s;
     }
-    button:hover { background: #43a047; }
+    button:hover { background: #0056b3; }
     #result {
       margin-top: 15px;
       font-size: 18px;
-      background: #e8f5e9;
+      background: #e3f2fd;
       border-radius: 10px;
       padding: 10px;
       display: inline-block;
+      border: 1px solid #007bff;
+      max-width: 400px;
+    }
+    #desc {
+      text-align: left;
+      font-size: 16px;
+      margin-top: 10px;
+      background: #f0f8ff;
+      border-radius: 8px;
+      padding: 10px;
+      border: 1px solid #007bff;
+    }
+    #quizBtn {
+      margin-top: 12px;
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: none;
+    }
+    #quizBtn:hover {
+      background: #0056b3;
     }
   </style>
 </head>
 
 <body>
-  <h2>♻️ ỨNG DỤNG NHẬN DIỆN LINH KIỆN ĐIỆN TỬ BẰNG AI</h2>
-  <label for="classCode">Nhập mã lớp:</label>
+  <h2>🔹 ỨNG DỤNG NHẬN DIỆN LINH KIỆN ĐIỆN TỬ BẰNG AI 🔹</h2>
+
+  <label for="studentName">Họ và tên:</label>
+  <input type="text" id="studentName" placeholder="Nhập họ và tên học sinh" /><br>
+
+  <label for="classCode">Mã lớp:</label>
   <input type="text" id="classCode" placeholder="VD: 10A1" />
 
   <div id="camera-container">
     <video id="webcam" autoplay playsinline muted></video>
   </div>
 
-  <button id="startBtn">Bắt đầu nhận diện</button>
+  <button id="startBtn">📷 Bắt đầu nhận diện</button>
 
   <div id="result">
     <p><strong>Tên linh kiện:</strong> <span id="label">---</span></p>
     <p><strong>Độ chính xác:</strong> <span id="confidence">---</span></p>
+    <div id="desc"></div>
+    <button id="quizBtn">👉 Làm bài trắc nghiệm</button>
   </div>
+
   <div id="footer">
-    <p>TRƯỜNG THPT TRẦN QUỐC TUẤN- Ứng dụng AI trong dạy học môn Công nghệ” 🌿</p>
+    <p>© 2025 TRƯỜNG THPT TRẦN QUỐC TUẤN — Ứng dụng AI trong dạy học môn Công nghệ 🌿</p>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0"></script>
@@ -77,6 +113,22 @@
   <script>
     const URL = "model/";
     let model;
+
+    // Bảng mô tả linh kiện
+    const linhKienData = {
+      "Điện trở": {
+        desc: "✅ Điện trở là linh kiện cản trở dòng điện trong mạch. Dùng để điều chỉnh dòng điện, chia điện áp và bảo vệ linh kiện khác.",
+        quiz: "https://forms.gle/abc123dien_tro" // 🔗 link Google Form riêng
+      },
+      "Tụ điện": {
+        desc: "✅ Tụ điện là linh kiện có khả năng tích trữ điện tích. Dùng để lọc nhiễu, khởi động động cơ, và ổn định nguồn điện.",
+        quiz: "https://forms.gle/abc123tu_dien"
+      },
+      "Cuộn cảm": {
+        desc: "✅ Cuộn cảm (inductor) là linh kiện tích trữ năng lượng dưới dạng từ trường. Dùng trong các mạch lọc, nguồn xung và radio.",
+        quiz: "https://forms.gle/abc123cuon_cam"
+      }
+    };
 
     async function init() {
       const modelURL = URL + "model.json";
@@ -112,8 +164,22 @@
         if (prediction[i].probability > best.probability) best = prediction[i];
       }
 
-      document.getElementById("label").innerText = best.className;
+      const name = best.className;
+      document.getElementById("label").innerText = name;
       document.getElementById("confidence").innerText = (best.probability * 100).toFixed(2) + "%";
+
+      // Hiển thị mô tả nếu trùng tên linh kiện
+      const descDiv = document.getElementById("desc");
+      const quizBtn = document.getElementById("quizBtn");
+
+      if (linhKienData[name]) {
+        descDiv.innerHTML = "<b>Công dụng & Nguyên lý:</b><br>" + linhKienData[name].desc;
+        quizBtn.style.display = "inline-block";
+        quizBtn.onclick = () => window.open(linhKienData[name].quiz, "_blank");
+      } else {
+        descDiv.innerHTML = "";
+        quizBtn.style.display = "none";
+      }
     }
 
     document.getElementById("startBtn").addEventListener("click", init);
